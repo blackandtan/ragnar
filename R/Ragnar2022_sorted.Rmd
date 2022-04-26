@@ -1,0 +1,123 @@
+---
+title: "Atlanta Ragnar Relay 2022"
+date: "April 22-23, 2022"
+output: html_document
+---
+
+```{r setup, echo = F, include=FALSE}
+  knitr::opts_chunk$set(echo = FALSE, warning = F, message = F)
+  
+library(readxl)
+library(readr)
+library(lubridate)
+library(forcats)
+library(purrr)
+library(tidyverse)
+library(DT)
+library(plotly)
+
+raw2022 <- read_csv("../data/Ragnar2022.csv")
+
+r22 <- raw2022 %>% 
+  mutate(laptime = as.duration(Time),
+         Loopcolor = factor(Loopcolor, c("G", "Y", "R"))) %>% 
+  group_by(Runner) %>% 
+  mutate(Runnertotal = sum(laptime, na.rm = T),
+         timelbl = seconds_to_period(Runnertotal)) %>% 
+  ungroup() %>% 
+  mutate(Runner = reorder(Runner, -Runnertotal),
+         Runnertime = paste0(Runner, " (", timelbl, ")"),
+         Runnertime = fct_reorder(Runnertime, -Runnertotal), # comment out this line for unsorted results
+         laplbl = as.character(Time),
+         pace2 = duration(laptime/Length)
+         )
+
+```
+
+## Ragnar link
+
+Results are posted on the <a href = "https://www.runragnar.com/event-detail/trail/atlanta_ga#resultsphotos">Atl Ragnar Relay race page</a>. Photos may be posted there too at some point, though I don't recall seeing a photographer on the course or in the village at the race this time -? They may just post the team photos there at some point.
+
+## Results! {.tabset}
+
+The results include two adjustments:
+
+- I adjusted the yellow loop to be 5.7 miles for our pace calculations. It was longer than the 5.3 advertised, right?! My watch showed 5.65 miles and Heather's showed 5.7 miles, so that's what I used.
+
+- there was a problem with Ragnar's notification system when Jody was exchanging with Kyla for their nighttime green loop. I subtracted an estimate of the delay time from the data based on pace analysis. 
+
+### <font size="4"> Loop times </font>
+
+*Total time on the course is shown in parentheses next to each runner's name. Hover over the data points to see time details for each loop.*
+
+```{r timefig, out.width = "100%"}
+
+tfig <- ggplot(r22, aes(Time, Runnertime, color = Loopcolor, fill = Loopcolor,label = laplbl)) +
+  geom_point(shape = 21, size = 3, stroke = 0.65) +
+  # geom_text(size = 2, nudge_y = -.35, nudge_x = 0.35, show.legend = FALSE) +
+  scale_colour_manual("Loop", values = c("green4",  "orange4", "red4")) +
+  scale_fill_manual("Loop", values = c("lightgreen",  "orange", "red")) +
+  labs(title = "Atlanta Ragnar Relay 2022",
+       subtitle = "16.2 miles total (Green 4.3, Yellow 5.7, Red 6.2)",
+       caption = "*Yellow loop adjusted to 5.7 miles; Kyla's green loop adjusted for delayed handoff",
+       x = "Time",
+       y = "") +
+  theme_minimal() +
+  theme(legend.position ="none")
+
+ggplotly(tfig, tooltip = c("x"))
+
+```
+
+### <font size="4"> Pace </font>
+
+*Hover over the data points to see time details.*
+
+```{r pacefig, out.width = "100%"}
+
+pacefig <- ggplot(r22, aes(pace, Runnertime, color = Loopcolor, fill = Loopcolor, label = pace)) +
+  geom_point(shape = 21, size = 3, stroke = 0.65) +
+  # geom_text(size = 2, nudge_y = -.35, nudge_x = 0.35, show.legend = FALSE) +
+  scale_colour_manual("Loop", values = c("green4",  "orange4", "red4")) +
+  scale_fill_manual("Loop", values = c("lightgreen",  "orange", "red")) +
+  labs(title = "Atlanta Ragnar Relay 2022",
+       subtitle = "16.2 miles total (Green 4.3, Yellow 5.7, Red 6.2)",
+       caption = "*Yellow loop adjusted to 5.7 miles; Kyla's green loop adjusted for delayed handoff",
+       x = "Pace, in minutes per mile",
+       y = "") +
+  theme_minimal() +
+  theme(legend.position="none")
+
+ggplotly(pacefig, tooltip = c("x"))
+```
+
+### <font size="4"> Data </font>
+
+*Use the search box at the top right to filter by team (Bike or Saddle), by person, or by loop.*
+
+```{r datatbl}
+
+tbl <- r22 %>%   select(Team, Runner, Loopcolor, Length, Time, pace)
+  
+DT::datatable(
+  tbl,
+  class = "display compact hover",
+  colnames = c("Team", "Runner", "Loop", "Length", "Time", "Pace"),
+  rownames = F,
+  extensions = 'Buttons',
+  options = list(dom = 'rlftBip',
+                 pagelength = 10,
+                 lengthMenu = list(c(10, 24, -1),
+                                   c('10', '24', 'Show all')),
+                 buttons = list(
+                   list(extend = 'csv', filename = 'Atl Ragnar 2022'),
+                   list(extend = 'excel', filename = 'Atl Ragnar 2022')
+                 ),
+                 columnDefs = list(
+                   list(className = 'dt-center', targets = c(3,4,5))
+                 ))
+  )
+
+```
+
+
